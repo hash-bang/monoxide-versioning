@@ -187,8 +187,8 @@ describe('monoxide-versioning middleware', function() {
 
 				expect(user).to.have.property('_id');
 				expect(user).to.have.property('__v', 0);
-				expect(user).to.not.have.property('name', 'Jane Quark');
-				expect(user).to.not.have.property('role', 'user');
+				expect(user).to.not.have.property('name');
+				expect(user).to.not.have.property('role');
 				expect(user).to.not.have.property('_password');
 				expect(user).to.not.have.property('favourite');
 				expect(user).to.not.have.property('mostPurchased');
