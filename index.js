@@ -1,6 +1,8 @@
 var _ = require('lodash');
 var async = require('async-chainable');
+var debug = require('debug')('monoxide-versioning');
 var hashing = require('./hashing');
+var monoxide = require('monoxide');
 var objectHash = require('object-hash');
 
 
@@ -18,7 +20,8 @@ var objectHash = require('object-hash');
 * @param {function} [options.hashClean] Hash cleaning function to be called as (cb). Defaults to the internal in-memory storage
 * @param {number} [options.hashExpire] The time in milliseconds a hash should expire. Defaults to 1 hour
 * @param {function} [options.versionedResponse] Function which should respond to Express if a hashed version is detected
-* @param {function} [options.invalidates] Function which should determine if an incomming request invalidates the cache. Defaults to detecthing any method that is not 'GET'
+* @param {string|function} [options.model] The name of the current model to query against in `options.invalidates`. If this is a function it is run ONCE when the factory is invoked and its response used in all future calls. Defaults to a function which tries to match the model against `/api/<MODEL>/:id`
+* @param {function} [options.invalidates] Function which should determine if an incomming request invalidates the cache. Called as (req, res, id, version, cb). Defaults to pulling the record by its ID and checking its version if `options.model` is specified, otherwise uses req.method != 'GET'
 * @return {function} An express compatible middleware function
 */
 module.exports = function(options) {
@@ -26,14 +29,40 @@ module.exports = function(options) {
 		idField: (req, res) => req.params.id,
 		versionField: (req, res) => req.query.__v !== undefined ? parseInt(req.query.__v) : undefined,
 		assumeVersion: 0,
-		hasher: (req, res, id, version, cb) => cb(null, objectHash.sha1({params: req.params, query: _.omit(req.query, '__v'), id: id, version: version})),
+		hasher: (req, res, id, version, cb) => cb(null, objectHash.sha1({params: req.params, query: _.omit(req.query, '__v'), id: id})),
 		hashGet: hashing.get,
 		hashSet: hashing.set,
 		hashRemove: hashing.remove,
 		hashClean: hashing.clean,
 		hashExpire: 60 * 60 * 1000, // 1 hour
 		versionedResponse: (req, res, id, version, cb) => res.send({_id: id, __v: version}).end(),
-		invalidates: (req, res, cb) => cb(null, req.method != 'GET'),
+		invalidates: (req, res, id, version, cb) => {
+			if (settings.model && monoxide.models[settings.model]) {
+				monoxide.models[settings.model]
+					.findOneByID(id)
+					.select(['_id', '__v'])
+					.exec(function(err, doc) {
+						if (err) return cb(err);
+						cb(null, doc.__v != version); // DB pull returned mismatched version
+					});
+			} else if (settings.model) {
+				debug('Invalidates function given model', settings.model, 'but monoxide doesnt have it in monoxide.models!');
+			} else {
+				cb(null, req.method != 'GET');
+			}
+		},
+		model: (req, res, cb) => {
+			var [,model] = /^\/api\/(.+)\//.exec(req.path);
+			if (model && monoxide.models[model]) {
+				debug('Determined model', model, 'from path', req.path);
+				cb(null, model);
+			} else if (model) {
+				debug('Determined model', model, 'from path', req.path, '- but Monoxide doesnt have an entry in monoxide.models[]');
+				cb();
+			} else {
+				cb();
+			}
+		},
 	});
 
 	return function(req, res, expressContinue) {
@@ -51,6 +80,16 @@ module.exports = function(options) {
 		// }}}
 
 		async()
+			// Eval settings.model (if a function) into a string from now on (should only run once) {{{
+			.then(function(next) {
+				if (!_.isFunction(settings.model)) return next();
+				settings.model(req, res, function(err, model) {
+					if (err) return next(err);
+					settings.model = model;
+					next();
+				});
+			})
+			// }}}
 			// Hash the request {{{
 			.then('reqHash', function(next) {
 				settings.hasher(req, res, id, version, next)
@@ -58,20 +97,20 @@ module.exports = function(options) {
 			// }}}
 			// Work out if we should invalidate - this is usually req.method!='GET' {{{
 			.then('invalidated', function(next) {
-				settings.invalidates(req, res, next);
+				settings.invalidates(req, res, id, version, next);
 			})
 			// }}}
 			// Fetch if a hashed response exists {{{
 			.then('reqHashExists', function(next) {
 				if (this.invalidated) {
-					settings.hashRemove(this.reqHash, settings.hashExpire, next);
+					settings.hashRemove(this.reqHash, next);
 					return next('invalidated');
 				} else {
 					settings.hashGet(this.reqHash, next);
 				}
 			})
 			// }}}
-			// ... if not plug into the json function in order to capture output and stash it {{{
+			// ... if not plug into the JSON function in order to capture output and stash it {{{
 			.then('resJSON', function(next) {
 				if (this.reqHashExists) return next('hasHash');
 

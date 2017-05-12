@@ -44,7 +44,7 @@ hashing.set = (hash, expire, cb) => {
 hashing.remove = (hash, cb) => {
 	delete hashCache[hash];
 	cb();
-}
+};
 
 
 /**
@@ -55,4 +55,4 @@ hashing.clean = cb => {
 	var now = new Date.now();
 	hashCache = _.pickBy(hashCache, v => v > now);
 	cb();
-}
+};
