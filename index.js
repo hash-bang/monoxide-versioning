@@ -10,6 +10,15 @@ var objectHash = require('object-hash');
 * @param {Object} [options] Options for the returned middleware
 * @param {function} [options.idField] Function used to obtain the ID from the express req object. This defaults to using `req.params.id`
 * @param {function} [options.versionField] Function used to obtain the requested version from the express req object. This defaults to using `req.query.__v`
+* @param {number|string|undefined} [options.assumeVersion=0] What value to assume when no version is explicitly passed. Set this to undefined to always return the full payload
+* @param {function} [options.hasher] Function that should return a string hash of what we need to hash against. This is usually the query + params of req
+* @param {function} [options.hashGet] Hash getting function to be called as (hash, cb). Defaults to the internal in-memory storage
+* @param {function} [options.hashSet] Hash setting function to be called as (hash, expire, cb). Defaults to the internal in-memory storage
+* @param {function} [options.hashRemove] Hash removal function to be called as (hash, cb). Defaults to the internal in-memory storage
+* @param {function} [options.hashClean] Hash cleaning function to be called as (cb). Defaults to the internal in-memory storage
+* @param {number} [options.hashExpire] The time in milliseconds a hash should expire. Defaults to 1 hour
+* @param {function} [options.versionedResponse] Function which should respond to Express if a hashed version is detected
+* @param {function} [options.invalidates] Function which should determine if an incomming request invalidates the cache. Defaults to detecthing any method that is not 'GET'
 * @return {function} An express compatible middleware function
 */
 module.exports = function(options) {
@@ -58,7 +67,7 @@ module.exports = function(options) {
 					settings.hashRemove(this.reqHash, settings.hashExpire, next);
 					return next('invalidated');
 				} else {
-					settings.hashGet(this.reqHash, settings.hashExpire, next);
+					settings.hashGet(this.reqHash, next);
 				}
 			})
 			// }}}
