@@ -1,0 +1,41 @@
+{
+  "name": "monoxide-versioning",
+  "version": "0.0.0",
+  "description": "Versioning middleware for Monoxide GET requests",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hash-bang/monoxide-versioning.git"
+  },
+  "keywords": [
+    "mongo",
+    "monoxide",
+    "database",
+    "nosql",
+    "versioning",
+    "middleware"
+  ],
+  "author": "Matt Carter <m@ttcarter.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hash-bang/monoxide-versioning/issues"
+  },
+  "homepage": "https://github.com/hash-bang/monoxide-versioning#readme",
+  "devDependencies": {
+    "body-parser": "^1.17.1",
+    "chai": "^3.5.0",
+    "express": "^4.15.2",
+    "express-log-url": "^1.0.5",
+    "mocha": "^3.3.0",
+    "mocha-logger": "^1.0.5",
+    "mongoose-scenario": "^2.1.2",
+    "superagent": "^3.5.2"
+  },
+  "dependencies": {
+    "lodash": "^4.17.4",
+    "monoxide": "0.0.84"
+  }
+}
