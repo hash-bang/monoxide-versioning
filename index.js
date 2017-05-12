@@ -140,12 +140,16 @@ module.exports = function(options) {
 				res.type('json');
 
 				if (err && err == 'hasHash') { // Return a hashed value response
+					debug('Serving versioned request for', req.path, '@version=', version);
 					settings.versionedResponse(req, res, id, version);
 				} else if (err && err == 'invalidated') { // Cache invalidated but we don't want to have to deal with the workings
+					debug('Versioning invalidated for', req.path);
 					expressContinue();
 				} else if (err) {
+					debug('Error -', err.toString(), 'on', req.path);
 					res.status(400).send(err);
 				} else { // We don't want to handle this - return the full value
+					debug('Passthru for', req.path);
 					res._mv_end(JSON.stringify(this.resJSON));
 				}
 			})
