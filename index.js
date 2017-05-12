@@ -1,33 +1,7 @@
 var _ = require('lodash');
 var async = require('async-chainable');
+var hashing = require('./hashing');
 var objectHash = require('object-hash');
-
-
-/**
-* Default hash storage system (memory object)
-* @param {object} obj Object to store
-* @return {string} Hash value of the stored object
-*/
-
-
-
-var mvHashCache = {};
-var mvHashGet = (hash, expire, cb) => {
-	cb(null, !! mvHashCache[hash]);
-};
-var mvHashSet = (hash, expire, cb) => {
-	mvHashCache[hash] = Date.now() + expire;
-	cb();
-};
-var mvHashRemove = (hash, cb) => {
-	delete mvHashCache[hash];
-	cb();
-};
-var mvHashClean = cb => {
-	var now = new Date.now();
-	mvHashCache = _.pickBy(mvHashCache, v => v > now);
-	cb();
-};
 
 
 /**
@@ -44,10 +18,10 @@ module.exports = function(options) {
 		versionField: (req, res) => req.query.__v !== undefined ? parseInt(req.query.__v) : undefined,
 		assumeVersion: 0,
 		hasher: (req, res, id, version, cb) => cb(null, objectHash.sha1({params: req.params, query: _.omit(req.query, '__v'), id: id, version: version})),
-		hashGet: mvHashGet,
-		hashSet: mvHashSet,
-		hashRemove: mvHashRemove,
-		hashClean: mvHashClean,
+		hashGet: hashing.get,
+		hashSet: hashing.set,
+		hashRemove: hashing.remove,
+		hashClean: hashing.clean,
 		hashExpire: 60 * 60 * 1000, // 1 hour
 		versionedResponse: (req, res, id, version, cb) => res.send({_id: id, __v: version}).end(),
 		invalidates: (req, res, cb) => cb(null, req.method != 'GET'),
